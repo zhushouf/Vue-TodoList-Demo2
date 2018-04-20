@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>待办清单</title>
+    <style>
+        *{padding: 0;margin: 0; box-sizing: border-box;}
+        #todo{
+            margin: 50px auto;
+            width: 1000px;
+            <!--margin: 50px 0;-->
+            padding: 10px;
+        }
+        #todo>li{
+            list-style-type: none;
+            position: relative;
+            line-height: 30px;
+            cursor: pointer;
+            padding-left: 10px;
+            border: 1px solid #fff;
+        }
+        #todo>li:hover {
+            border: 1px solid #eee;
+        }
+        #todo li .chek{
+            text-decoration: line-through;
+            color: #eee;
+        }
+        #todo li.editing div{
+            display: none;
+        }
+        #todo li .edit-txt{
+            padding-left: 10px;
+            margin-left: 10px;
+            width: 80%;
+            display: none;
+            height: 30px;
+        }
+        #todo li.editing .edit-txt{
+            display: block;
+        }
+
+        #todo .select-box.check{
+            background: blue;
+        }
+        #todo .close{
+            position: absolute;
+            right: 10px;
+        }
+        #todo .close:hover{
+            color: red;
+        }
+        #todo>h1{
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        #todo .text{
+            width: 100%;
+            height: 30px;
+            margin: 20px 0;
+            padding-left: 10px;
+        }
+        #todo .warn input{
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div id="todo">
+        <h1>待办清单</h1>
+        <input class="text" type="text" placeholder="请输入你最近想做的事" @keyup.enter="addList" v-model="addText" />
+        <div class="warn">
+            <p>共有{{todoList.length}}个清单，{{noend===0? "全部完成了":'已完成了'+(todoList.length-noend)+'，还有'+noend+'未完成'}}</p>
+
+            <input @click="chooseList(1)" type="radio" name="todo" value="所有清单" checked><label>所有清单</label>
+            <input @click="chooseList(2)" type="radio" name="todo" value="已完成清单"><label>已完成清单</label>
+            <input @click="chooseList(3)" type="radio" name="todo" value="未完成清单"><label>未完成清单</label>
+
+        </div>
+        <li v-for="(list, index) in newTodoList" :class="{'editing':curIndex===index}">
+            <div>
+                <input type="checkbox" @click="list.status=!list.status" :checked="list.status"/>
+                <span @dblclick="curIndex=index" :class="{'chek':list.status}">{{ list.name }}</span>
+                <span @click="delect(index)" class="close">X</span>
+            </div>
+
+            <input type="text" class="edit-txt" v-model="list.name" 
+                @key.esc="cancelEdit(list)"
+                @key.enter="editAfter"
+                @focus="editBefore(list.name)"
+                @blur="editAfter"
+                v-focus
+            />
+        </li>
+    </div>
+
+    <script src="https://cdn.bootcss.com/vue/2.5.13/vue.min.js"></script>
+    <script>
+		//localStroage保存数据，可以缓存数据
+		var STORAGE_KEY = 'todos-vuejs'//名称
+		var todoStorage = {
+		  fetch: function () {
+			var todos = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]')
+			todos.forEach(function (todo, index) {
+			  todo.id = index
+			})
+			todoStorage.uid = todos.length
+			return todos
+		  },
+		  save: function (todos) {
+			localStorage.setItem(STORAGE_KEY, JSON.stringify(todos))
+		  }
+		}		
+
+        var todo = new Vue({
+            el: '#todo',
+            data: {
+                addText: '',
+                curIndex: '',
+                beforeEditText: '',
+                //name-名称,status-完成状态--从todoStorage.fetch()那拿数据
+                todoList:todoStorage.fetch() ,
+                // 存储
+                newTodoList:[]
+            },
+
+            methods: {
+                addList() {
+                    if(this.addText != "") {
+                        this.todoList.push({
+                            name: this.addText,
+                            status: false,
+                        });
+                        this.addText="";
+                    }
+                },
+
+                // 所有、已完成、未完成清单
+                chooseList(type) {
+                    switch(type) {
+                        case 1: this.newTodoList = this.todoList;break;
+                        case 2: this.newTodoList = this.todoList.filter(function(item) {return item.status});break;
+                        case 3: this.newTodoList = this.todoList.filter(function(item) {return !item.status});break;
+
+                    }
+                },
+
+                // 切换状态
+                cutState() {
+
+
+                },
+
+                // 删除
+                delect(index) {
+                    this.todoList.splice(index, 1);
+                    this.newTodoList = this.todoList;
+                },
+
+                // 取消修改
+                cancelEdit(val) {
+                    val.name=this.beforeEditText;
+                    this.curIndex="";
+                },
+
+                // 修改后
+                editAfter() {
+                    this.curIndex="";
+
+
+                },
+
+                // 修改前
+                editBefore(name) {
+                    this.beforeEditText=name;
+                },
+
+            },
+
+            computed: {
+                // 未完成的待办
+                noend: function() {
+                    return this.todoList.filter(function(item) {
+                        return !item.status
+                    }).length;
+                }
+            },
+
+            // 自定义事件
+            directives: {
+                // 自动获取焦点
+                "focus": {
+                    update(el) {
+                        el.focus();
+                    }
+                }
+            },
+
+            // 初始化
+            mounted() {
+                this.newTodoList = this.todoList;
+            },
+			
+			  watch:{
+				todoList:{
+					handler:function(todoList){
+						todoStorage.save(todoList)
+					},
+				}
+			  }
+        })
+    </script>
+</body>
+</html>
